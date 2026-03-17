@@ -135,7 +135,7 @@ class ExcelToolsProvider(ToolProvider):
 - **excel2json**: When `include_styles=true`, extracts cell formatting into `[styles]` key
 - **json2excel**: Accepts `[styles]` key to apply cell formatting when generating Excel
 - Maps cell coordinates (e.g., "A1", "B2") to style objects
-- Supports: font (bold, italic, size, color, underline), fill (fgColor, bgColor), alignment (horizontal, vertical)
+- Supports: font (bold, italic, size, color, underline, strike, name), fill (fgColor, bgColor), alignment (horizontal, vertical, wrapText), border (top/bottom/left/right with style and color)
 - Only non-default styles are included to keep output concise
 - Enables round-trip: read Excel (with include_styles) → write back with [styles] → preserves formatting
 

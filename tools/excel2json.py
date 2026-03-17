@@ -215,6 +215,8 @@ class Excel2JsonTool(Tool):
                 align_style["horizontal"] = cell.alignment.horizontal
             if cell.alignment.vertical and cell.alignment.vertical != 'top':
                 align_style["vertical"] = cell.alignment.vertical
+            if cell.alignment.wrapText:
+                align_style["wrapText"] = True
 
             if align_style:
                 style["alignment"] = align_style
@@ -233,8 +235,7 @@ class Excel2JsonTool(Tool):
 
     def _extract_sheet_dimensions(self, ws) -> dict[str, Any]:
         """
-        Extract row heights and column widths from Excel sheet.
-        Returns a dict with rowHeights and columnWidths.
+        Extract row heights, column widths, and merged cells from Excel sheet.
         
         Args:
             ws: Worksheet object
@@ -259,10 +260,17 @@ class Excel2JsonTool(Tool):
             if col_letter in ws.column_dimensions:
                 width = ws.column_dimensions[col_letter].width
                 if width is not None:
-                    # Store as letter key
                     column_widths[col_letter] = width
         
         if column_widths:
             dimensions["columnWidths"] = column_widths
+        
+        # Extract merged cells
+        if ws.merged_cells:
+            merges = []
+            for merged_range in ws.merged_cells:
+                merges.append(str(merged_range))
+            if merges:
+                dimensions["merges"] = merges
         
         return dimensions

@@ -364,6 +364,16 @@ class Json2ExcelTool(Tool):
             worksheet, sheet_format.get("columnWidths"), f"sheets.{sheet_name}.columnWidths"
         )
 
+        # Apply merged cells
+        merges = sheet_format.get("merges")
+        if merges and isinstance(merges, list):
+            for merge_range in merges:
+                try:
+                    worksheet.merge_cells(merge_range)
+                except Exception:
+                    # Skip invalid merge ranges
+                    pass
+
     def _apply_meta_content(self, worksheet, meta_rows: list[dict[str, Any]]) -> None:
         """
         Apply meta content (custom rows before header) to worksheet.
@@ -457,6 +467,8 @@ class Json2ExcelTool(Tool):
                     align_kwargs["horizontal"] = align_cfg["horizontal"]
                 if align_cfg.get("vertical"):
                     align_kwargs["vertical"] = align_cfg["vertical"]
+                if align_cfg.get("wrapText"):
+                    align_kwargs["wrapText"] = True
 
                 if align_kwargs:
                     if cell.alignment:
@@ -465,6 +477,7 @@ class Json2ExcelTool(Tool):
                         cell.alignment = Alignment(
                             horizontal=align_kwargs.get("horizontal", existing.horizontal),
                             vertical=align_kwargs.get("vertical", existing.vertical),
+                            wrapText=align_kwargs.get("wrapText", existing.wrapText),
                         )
                     else:
                         cell.alignment = Alignment(**align_kwargs)

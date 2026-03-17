@@ -21,6 +21,18 @@ parameters:
       zh_Hans: 上传的文件.
     llm_description: Upload file.
     form: llm
+  - name: skip_rows
+    type: number
+    required: false
+    default: 0
+    label:
+      en_US: Skip Rows
+      zh_Hans: 跳过行数
+    human_description:
+      en_US: Number of rows to skip from the beginning of the Excel file.
+      zh_Hans: 从Excel文件开头跳过的行数。
+    llm_description: Number of rows to skip from the beginning.
+    form: llm
 extra:
   python:
     source: tools/excel2json.py

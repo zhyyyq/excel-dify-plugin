@@ -2,7 +2,7 @@
 
 **Author:** qiangxinglin
 
-**Version:** 0.0.5
+**Version:** 0.1.0
 
 **Type:** tool
 
@@ -26,17 +26,92 @@ The built-in `Doc Extractor` would convert input `.xlsx` file to markdown table 
 
 ### xlsx → json
 
-- The output is placed in the `text` output field rather than the `json` field in order to preserving the header order.
-- All cells are parsed as **string**, no matter what it is.
-- If the uploaded Excel file contains multiple sheets, the plugin will automatically convert it into a JSON object, where each key is the sheet name and the value is the data array of the corresponding sheet.
+- The output is placed in the `text` output field.
+- Output format is always a 2D array: `[["Header1", "Header2"], ["Row1Col1", "Row1Col2"], ...]`
+- All cells are parsed as strings.
+- Styles are automatically extracted to the `[styles]` key.
+- If the Excel file contains multiple sheets, the output will be an object with sheet names as keys.
 
-| Name | Age | Date |
-|------|-----|------|
-| John |  18 |2020/2/20|
-| Doe  |  20 |2020/2/2|
+**Output example:**
+```json
+{
+  "[styles]": {
+    "A1": {"font": {"bold": true}, "fill": {"fgColor": "FFFF00"}},
+    "B1": {"font": {"bold": true}}
+  },
+  "Sheet1": [
+    ["项目", "当前值", "年初值"],
+    ["资产", "9,880,979", "9,734,788"],
+    ["负债", "9,110,145", "8,977,638"]
+  ]
+}
+```
 
+This format is compatible with `json2excel` - you can use the array output directly as input for JSON → Excel conversion.
+{
+  "[styles]": {
+    "A1": {
+      "font": {"bold": true, "size": 12},
+      "fill": {"fgColor": "FFFF00"},
+      "alignment": {"horizontal": "center"}
+    },
+    "B1": {
+      "font": {"bold": true}
+    }
+  },
+  "Sheet1": [
+    {"Name": "John", "Age": "18"},
+    {"Name": "Doe", "Age": "20"}
+  ]
+}
+```
 
-![](_assets/e2j_output.png)
+#### Complete Example: Preserve Styles During Conversion
+
+This example demonstrates how to convert Excel to JSON and back while preserving all cell styles (font, fill, alignment).
+
+**Step 1: Excel → JSON**
+
+The tool automatically outputs 2D array format with `[styles]` key:
+
+```json
+{
+  "[styles]": {
+    "A1": {
+      "font": {"bold": true, "size": 15},
+      "fill": {"fgColor": "003679A9"},
+      "alignment": {"horizontal": "center", "vertical": "center"}
+    },
+    "A3": {
+      "font": {"bold": true, "size": 10},
+      "fill": {"fgColor": "003679A9"},
+      "alignment": {"horizontal": "center", "vertical": "center"}
+    }
+  },
+  "REPORT0": [
+    ["项目", "当前值", "年初值"],
+    ["资产", "9,880,979", "9,734,788"],
+    ["负债", "9,110,145", "8,977,638"]
+  ]
+}
+```
+
+**Step 2: JSON → Excel**
+
+Use the JSON output from Step 1 directly as input. The `[styles]` key will be automatically applied to the generated Excel file.
+
+**Supported style properties:**
+- `font.bold`: boolean
+- `font.italic`: boolean
+- `font.size`: number
+- `font.color`: hex color string (e.g., "00FFFFFF")
+- `font.underline`: boolean
+- `fill.fgColor`: foreground color hex string
+- `fill.bgColor`: background color hex string
+- `alignment.horizontal`: "left", "center", "right", etc.
+- `alignment.vertical`: "top", "center", "bottom", etc.
+
+**Note:** Only cells with non-default styles are included in the `[styles]` output to keep the JSON concise.
 
 ### json → xlsx
 
@@ -159,12 +234,142 @@ You can use either Excel letters or 1-based numeric indexes:
 }
 ```
 
+#### [meta] Structure
+
+The `[meta]` reserved key allows inserting custom content (title, author, date, etc.) before the header row.
+
+> **Note:** `[meta]` is safe to use because Excel prohibits `[` and `]` in sheet names.
+
+```json
+{
+  "[meta]": [
+    {"A": "Report Title", "D": "Date: 2024-01-01"},
+    {"A": "Author: John Doe"}
+  ],
+  "Sheet1": [
+    {"Name": "John", "Age": "18"},
+    {"Name": "Jane", "Age": "20"}
+  ]
+}
+```
+
+This produces:
+- Row 1: "Report Title" in A, "Date: 2024-01-01" in D
+- Row 2: "Author: John Doe" in A
+- Row 3: Header (Name, Age)
+- Row 4-5: Data rows
+
+##### Per-sheet Meta
+
+You can also specify meta per-sheet using an object format:
+
+```json
+{
+  "[meta]": {
+    "Employees": [
+      {"A": "Employee Report", "D": "2024-01-01"},
+      {"A": "Author: HR Team"}
+    ],
+    "Departments": [
+      {"A": "Department Overview"}
+    ]
+  },
+  "Employees": [...],
+  "Departments": [...]
+}
+```
+
+##### Combining [meta] and [format]
+
+You can use both `[meta]` and `[format]` together:
+
+```json
+{
+  "[meta]": [
+    {"A": "My Report", "C": "2024-01-01"}
+  ],
+  "[format]": {
+    "defaults": {
+      "rowHeight": 20
+    }
+  },
+  "Sheet1": [...]
+}
+```
+
+##### Column Identifiers
+
+Meta rows use the same column identifier format as `[format]`:
+- Letters: `"A"`, `"B"`, `"AA"`, etc.
+- 1-based integers: `"1"`, `"2"`, etc.
+
+#### [styles] Structure
+
+The `[styles]` key allows applying cell formatting (font, fill, alignment) when generating Excel. This enables round-trip conversion: read Excel with `include_styles=true` → output can be used as input to preserve styles.
+
+```json
+{
+  "[styles]": {
+    "A1": {
+      "font": {"bold": true, "size": 12},
+      "fill": {"fgColor": "FFFF00"},
+      "alignment": {"horizontal": "center", "vertical": "center"}
+    },
+    "B1": {
+      "font": {"bold": true, "italic": true}
+    },
+    "A2": {
+      "fill": {"fgColor": "FFCCCC"}
+    }
+  },
+  "Sheet1": [
+    {"Name": "John", "Age": "18"},
+    {"Name": "Jane", "Age": "20"}
+  ]
+}
+```
+
+**Style properties:**
+- `font.bold`: boolean
+- `font.italic`: boolean  
+- `font.size`: number
+- `font.color`: hex color string (e.g., "00FFFFFF", "FFFF00")
+- `font.underline`: boolean
+- `fill.fgColor`: foreground color hex string
+- `fill.bgColor`: background color hex string
+- `alignment.horizontal`: "left", "center", "right", etc.
+- `alignment.vertical`: "top", "center", "bottom", etc.
+
+**Per-sheet styles:** Use an object with sheet names as keys:
+
+```json
+{
+  "[styles]": {
+    "Employees": {
+      "A1": {"font": {"bold": true}}
+    },
+    "Departments": {
+      "A1": {"font": {"italic": true}}
+    }
+  },
+  "Employees": [...],
+  "Departments": [...]
+}
+```
+
+**Round-trip example:** Read Excel with `include_styles=true`, then use the output JSON directly as input to preserve styles.
+
 
 ## Used Open sourced projects
 
 - [pandas](https://github.com/pandas-dev/pandas), BSD 3-Clause License
 
 ## Changelog
+- **0.1.0**: Refactor excel2json to use pure openpyxl (no pandas), always output 2D array, always extract styles
+- **0.0.9**: Add `output_format` parameter to excel2json (records/array) and support array format input in json2excel
+- **0.0.8**: Add `[styles]` support to json2excel for applying cell formatting (enables round-trip with excel2json)
+- **0.0.7**: Add `include_styles` parameter to excel2json for extracting cell formatting (font, fill, alignment)
+- **0.0.6**: Add `[meta]` support for inserting custom content (title, author, etc.) before header row
 - **0.0.5**: Add `[format]` metadata support for controlling row heights and column widths during JSON → Excel conversion
 - **0.0.4**: Add missing dependency (xlrd)
 - **0.0.3**: Add multi-sheet support for Excel processing (closes #13)

@@ -21,9 +21,6 @@ class Excel2JsonTool(Tool):
         if not file_url:
             raise Exception("No file URL provided")
 
-        # Number of rows to skip from beginning
-        skip_rows = int(tool_parameters.get('skip_rows', 0))
-
         try:
             # Create temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
@@ -49,16 +46,22 @@ class Excel2JsonTool(Tool):
 
                 for sheet_name in sheet_names:
                     ws = wb[sheet_name]
-                    data = self._read_sheet_data(ws, skip_rows)
+                    data = self._read_sheet_data(ws)
 
                     # Extract styles
                     styles = {}
                     if sheet_name in wb_styles.sheetnames:
                         ws_styles = wb_styles[sheet_name]
-                        styles = self._extract_sheet_styles(ws_styles, skip_rows)
+                        styles = self._extract_sheet_styles(ws_styles)
+
+                    # Extract dimensions (row heights and column widths)
+                    dimensions = self._extract_sheet_dimensions(ws)
 
                     if styles:
                         json_output["[styles]"] = styles
+
+                    if dimensions:
+                        json_output["[format]"] = {"sheets": {sheet_name: dimensions}}
 
                     json_output[sheet_name] = data
 
@@ -73,13 +76,23 @@ class Excel2JsonTool(Tool):
             else:
                 # Single sheet
                 ws = wb[sheet_names[0]]
-                data = self._read_sheet_data(ws, skip_rows)
+                data = self._read_sheet_data(ws)
 
                 # Extract styles
                 styles = {}
                 if sheet_names[0] in wb_styles.sheetnames:
                     ws_styles = wb_styles[sheet_names[0]]
-                    styles = self._extract_sheet_styles(ws_styles, skip_rows)
+                    styles = self._extract_sheet_styles(ws_styles)
+
+                # Extract dimensions (row heights and column widths)
+                dimensions = self._extract_sheet_dimensions(ws)
+
+                # Build output
+                output = {sheet_names[0]: data}
+                if dimensions:
+                    output["[format]"] = {"sheets": {sheet_names[0]: dimensions}}
+                if styles:
+                    output["[styles]"] = styles
 
                 wb.close()
                 wb_styles.close()
@@ -87,12 +100,8 @@ class Excel2JsonTool(Tool):
                 # Clean up temp file if we created one
                 if file_url.startswith('http://') or file_url.startswith('https://'):
                     os.unlink(tmp_path)
-
-                if styles:
-                    output = {"[styles]": styles, sheet_names[0]: data}
-                    yield self.create_text_message(json.dumps(output, ensure_ascii=False, indent=2))
-                else:
-                    yield self.create_text_message(json.dumps(data, ensure_ascii=False, indent=2))
+                
+                yield self.create_text_message(json.dumps(output, ensure_ascii=False, indent=2))
 
         except Exception as e:
             # Clean up temp file on error
@@ -103,21 +112,24 @@ class Excel2JsonTool(Tool):
                 pass
             raise Exception(f"Error processing Excel file: {str(e)}")
 
-    def _read_sheet_data(self, ws, skip_rows: int = 0) -> list[list]:
+    def _read_sheet_data(self, ws) -> list[list]:
         """
         Read all data from worksheet as a 2D array.
         Handles merged cells and empty cells properly.
         
         Args:
             ws: Worksheet object
-            skip_rows: Number of rows to skip from the beginning
         """
+        # Validate inputs
+        if not hasattr(ws, 'max_row'):
+            raise TypeError(f"_read_sheet_data expects a worksheet object, got {type(ws)}")
+        
         data = []
         max_row = ws.max_row
         max_col = ws.max_column
 
-        # Start from row skip_rows+1 (1-based) to skip header/index rows
-        for row_idx in range(1 + skip_rows, max_row + 1):
+        # Start from row 1 (1-based)
+        for row_idx in range(1, max_row + 1):
             row_data = []
             for col_idx in range(1, max_col + 1):
                 cell = ws.cell(row=row_idx, column=col_idx)
@@ -131,7 +143,7 @@ class Excel2JsonTool(Tool):
 
         return data
 
-    def _extract_sheet_styles(self, ws, skip_rows: int = 0) -> dict[str, dict]:
+    def _extract_sheet_styles(self, ws) -> dict[str, dict]:
         """
         Extract styles from Excel sheet.
         Returns a dict mapping cell coordinates (e.g., "A1", "B2") to style objects.
@@ -139,14 +151,13 @@ class Excel2JsonTool(Tool):
         
         Args:
             ws: Worksheet object
-            skip_rows: Number of rows to skip from the beginning
         """
         styles = {}
         max_row = ws.max_row
         max_col = ws.max_column
 
-        # Start from row skip_rows+1 (1-based) to skip header/index row styles
-        for row_idx in range(1 + skip_rows, max_row + 1):
+        # Start from row 1 (1-based)
+        for row_idx in range(1, max_row + 1):
             for col_idx in range(1, max_col + 1):
                 cell = ws.cell(row=row_idx, column=col_idx)
                 cell_style = self._extract_cell_style(cell)
@@ -219,3 +230,39 @@ class Excel2JsonTool(Tool):
             result = chr(65 + (col_idx % 26)) + result
             col_idx //= 26
         return result
+
+    def _extract_sheet_dimensions(self, ws) -> dict[str, Any]:
+        """
+        Extract row heights and column widths from Excel sheet.
+        Returns a dict with rowHeights and columnWidths.
+        
+        Args:
+            ws: Worksheet object
+        """
+        dimensions = {}
+        
+        # Extract row heights
+        row_heights = {}
+        for row_idx in range(1, ws.max_row + 1):
+            if row_idx in ws.row_dimensions:
+                height = ws.row_dimensions[row_idx].height
+                if height is not None:
+                    row_heights[str(row_idx)] = height
+        
+        if row_heights:
+            dimensions["rowHeights"] = row_heights
+        
+        # Extract column widths
+        column_widths = {}
+        for col_idx in range(1, ws.max_column + 1):
+            col_letter = self._get_column_letter(col_idx)
+            if col_letter in ws.column_dimensions:
+                width = ws.column_dimensions[col_letter].width
+                if width is not None:
+                    # Store as letter key
+                    column_widths[col_letter] = width
+        
+        if column_widths:
+            dimensions["columnWidths"] = column_widths
+        
+        return dimensions

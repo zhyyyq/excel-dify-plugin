@@ -441,14 +441,13 @@ class Json2ExcelTool(Tool):
             # Apply fill styles
             fill_cfg = style.get("fill")
             if fill_cfg and isinstance(fill_cfg, dict):
-                fill_kwargs = {}
+                fill_kwargs = {"patternType": "solid"}
                 if fill_cfg.get("fgColor"):
                     fill_kwargs["fgColor"] = fill_cfg["fgColor"]
                 if fill_cfg.get("bgColor"):
                     fill_kwargs["bgColor"] = fill_cfg["bgColor"]
 
-                if fill_kwargs:
-                    cell.fill = PatternFill(**fill_kwargs)
+                cell.fill = PatternFill(**fill_kwargs)
 
             # Apply alignment
             align_cfg = style.get("alignment")

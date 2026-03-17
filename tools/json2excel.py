@@ -432,6 +432,10 @@ class Json2ExcelTool(Tool):
                     font_kwargs["underline"] = "single"
                 if font_cfg.get("color"):
                     font_kwargs["color"] = font_cfg["color"]
+                if font_cfg.get("strike"):
+                    font_kwargs["strike"] = True
+                if font_cfg.get("name"):
+                    font_kwargs["name"] = font_cfg["name"]
 
                 if font_kwargs:
                     if cell.font:
@@ -443,7 +447,8 @@ class Json2ExcelTool(Tool):
                             size=font_kwargs.get("size", existing_font.size),
                             underline=font_kwargs.get("underline", existing_font.underline),
                             color=font_kwargs.get("color", existing_font.color),
-                            name=existing_font.name,
+                            strike=font_kwargs.get("strike", existing_font.strike),
+                            name=font_kwargs.get("name", existing_font.name),
                         )
                     else:
                         cell.font = Font(**font_kwargs)
@@ -481,6 +486,24 @@ class Json2ExcelTool(Tool):
                         )
                     else:
                         cell.alignment = Alignment(**align_kwargs)
+
+            # Apply border
+            border_cfg = style.get("border")
+            if border_cfg and isinstance(border_cfg, dict):
+                side_configs = {}
+                for side_name in ['top', 'bottom', 'left', 'right']:
+                    side_cfg = border_cfg.get(side_name)
+                    if side_cfg and isinstance(side_cfg, dict):
+                        side_kwargs = {}
+                        if side_cfg.get("style"):
+                            side_kwargs["style"] = side_cfg["style"]
+                        if side_cfg.get("color"):
+                            side_kwargs["color"] = side_cfg["color"]
+                        if side_kwargs:
+                            side_configs[side_name] = Side(**side_kwargs)
+
+                if side_configs:
+                    cell.border = Border(**side_configs)
 
     def _apply_uniform_row_height(self, worksheet, row_count: int, value: Any, label: str) -> None:
         """Apply the same height to all rows."""

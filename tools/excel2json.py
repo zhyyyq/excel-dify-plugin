@@ -188,6 +188,10 @@ class Excel2JsonTool(Tool):
                     font_style["color"] = color
             if cell.font.underline and cell.font.underline != 'none':
                 font_style["underline"] = True
+            if cell.font.strike is True:
+                font_style["strike"] = True
+            if cell.font.name:
+                font_style["name"] = cell.font.name
 
             if font_style:
                 style["font"] = font_style
@@ -220,6 +224,23 @@ class Excel2JsonTool(Tool):
 
             if align_style:
                 style["alignment"] = align_style
+
+        # Border
+        if cell.border:
+            border_style = {}
+            for side in ['top', 'bottom', 'left', 'right']:
+                side_attr = getattr(cell.border, side, None)
+                if side_attr and side_attr.style:
+                    side_dict = {}
+                    if side_attr.style:
+                        side_dict["style"] = side_attr.style
+                    if side_attr.color and side_attr.color.rgb:
+                        side_dict["color"] = side_attr.color.rgb
+                    if side_dict:
+                        border_style[side] = side_dict
+            
+            if border_style:
+                style["border"] = border_style
 
         # Return style dict only if it has content
         return style if style else None

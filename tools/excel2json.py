@@ -135,8 +135,18 @@ class Excel2JsonTool(Tool):
                 cell = ws.cell(row=row_idx, column=col_idx)
                 value = cell.value
                 # Convert to string, keep None as None
+                # Handle numeric types properly: int stays int, float 123.0 becomes "123"
                 if value is not None:
-                    row_data.append(str(value))
+                    if isinstance(value, (int, bool)):
+                        row_data.append(str(value))
+                    elif isinstance(value, float):
+                        # Check if float is actually an integer (e.g., 123.0 -> 123)
+                        if value.is_integer():
+                            row_data.append(str(int(value)))
+                        else:
+                            row_data.append(str(value))
+                    else:
+                        row_data.append(str(value))
                 else:
                     row_data.append(None)
             data.append(row_data)

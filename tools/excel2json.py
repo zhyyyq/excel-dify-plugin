@@ -116,6 +116,7 @@ class Excel2JsonTool(Tool):
         """
         Read all data from worksheet as a 2D array.
         Handles merged cells and empty cells properly.
+        Preserves numeric types (int, float) and converts other types to string.
         
         Args:
             ws: Worksheet object
@@ -134,17 +135,14 @@ class Excel2JsonTool(Tool):
             for col_idx in range(1, max_col + 1):
                 cell = ws.cell(row=row_idx, column=col_idx)
                 value = cell.value
-                # Convert to string, keep None as None
-                # Handle numeric types properly: int stays int, float 123.0 becomes "123"
+                # Preserve numeric types, convert others to string
                 if value is not None:
                     if isinstance(value, (int, bool)):
-                        row_data.append(str(value))
+                        # Keep int as int
+                        row_data.append(value)
                     elif isinstance(value, float):
-                        # Check if float is actually an integer (e.g., 123.0 -> 123)
-                        if value.is_integer():
-                            row_data.append(str(int(value)))
-                        else:
-                            row_data.append(str(value))
+                        # Keep float as float
+                        row_data.append(value)
                     else:
                         row_data.append(str(value))
                 else:
@@ -251,6 +249,10 @@ class Excel2JsonTool(Tool):
             
             if border_style:
                 style["border"] = border_style
+
+        # Number format
+        if cell.number_format and cell.number_format != 'General':
+            style["numberFormat"] = cell.number_format
 
         # Return style dict only if it has content
         return style if style else None

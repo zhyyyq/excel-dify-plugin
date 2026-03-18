@@ -115,7 +115,6 @@ class ExcelToolsProvider(ToolProvider):
 - Supports `[format]` reserved key for row heights and column widths
 - Supports `[meta]` reserved key for inserting content before header
 - Supports `[styles]` reserved key for cell formatting
-- Supports `[styles]` reserved key for cell formatting
 
 ### [format] Feature
 - `[format]` key is reserved (Excel prohibits sheet names with `[` or `]`)
@@ -135,7 +134,7 @@ class ExcelToolsProvider(ToolProvider):
 - **excel2json**: When `include_styles=true`, extracts cell formatting into `[styles]` key
 - **json2excel**: Accepts `[styles]` key to apply cell formatting when generating Excel
 - Maps cell coordinates (e.g., "A1", "B2") to style objects
-- Supports: font (bold, italic, size, color, underline, strike, name), fill (fgColor, bgColor), alignment (horizontal, vertical, wrapText), border (top/bottom/left/right with style and color)
+- Supports: font (bold, italic, size, color, underline, strike, name), fill (fgColor, bgColor), alignment (horizontal, vertical, wrapText), border (top/bottom/left/right with style and color), **numberFormat** (e.g., "0.00", "¥#,##0.00", "YYYY-MM-DD")
 - Only non-default styles are included to keep output concise
 - Enables round-trip: read Excel (with include_styles) → write back with [styles] → preserves formatting
 

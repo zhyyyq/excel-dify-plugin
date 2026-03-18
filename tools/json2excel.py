@@ -79,7 +79,7 @@ class Json2ExcelTool(Tool):
                         for col_idx, value in enumerate(row, start=1):
                             col_letter = get_column_letter(col_idx)
                             cell = ws[f"{col_letter}{row_offset}"]
-                            cell.value = str(value) if value is not None else ""
+                            cell.value = self._parse_value(value)
                             cell.alignment = Alignment(vertical='center')
 
                 # Apply formatting if configured
@@ -505,6 +505,11 @@ class Json2ExcelTool(Tool):
                 if side_configs:
                     cell.border = Border(**side_configs)
 
+            # Apply number format
+            num_fmt = style.get("numberFormat")
+            if num_fmt and isinstance(num_fmt, str):
+                cell.number_format = num_fmt
+
     def _apply_uniform_row_height(self, worksheet, row_count: int, value: Any, label: str) -> None:
         """Apply the same height to all rows."""
         height = self._coerce_positive_number(value, label)
@@ -614,3 +619,28 @@ class Json2ExcelTool(Tool):
             raise Exception(f"The value for '{label}' must be greater than zero.")
 
         return number
+
+    def _parse_value(self, value: Any) -> Any:
+        """
+        Parse value to appropriate type.
+        - If value is already int/float, keep as-is
+        - If value is None, return empty string
+        - If value is a string that looks like a number, convert to number
+        - Otherwise return string
+        """
+        if value is None:
+            return ""
+        if isinstance(value, (int, float)):
+            return value
+        if isinstance(value, str):
+            s = value.strip()
+            if not s:
+                return ""
+            # Try to parse as number (for backward compatibility)
+            try:
+                if '.' in s:
+                    return float(s)
+                return int(s)
+            except ValueError:
+                return value
+        return str(value)

@@ -26,8 +26,6 @@ class Json2ExcelTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
         json_str = tool_parameters['json_str']
         
-        # Number of rows to skip from the beginning when writing
-        skip_rows = int(tool_parameters.get('skip_rows', 0))
 
         # Parse JSON and extract sheets data, meta, format, and styles configuration
         payload = self._load_json(json_str)
@@ -53,10 +51,6 @@ class Json2ExcelTool(Tool):
 
                 if not isinstance(data, list):
                     raise Exception(f"Value for sheet '{sheet_name}' must be a list.")
-
-                # Skip rows if specified
-                if skip_rows > 0 and len(data) > skip_rows:
-                    data = data[skip_rows:]
 
                 # Get meta rows for this sheet
                 meta_rows = meta_cfg.get(sheet_name, [])
